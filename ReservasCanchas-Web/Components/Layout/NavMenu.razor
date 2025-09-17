@@ -1,65 +1,72 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">ReservasCanchas-Web</a>
-    </div>
-</div>
-
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
-<div class="sb-sidenav-menu" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
+﻿
+<div id="layoutSidenav_nav">
+    <nav class="sb-sidenav accordion sb-sidenav-dark" id="sidenavAccordion">
+        <div class="sb-sidenav-menu">
+            <div class="nav">
+                <div class="sb-sidenav-menu-heading">Core</div>
+                <NavLink class="nav-link" href="">
+                    <div class="sb-nav-link-icon">
+                        <i class="fas fa-tachometer-alt"></i>
+                    </div>
+                    Dashboard
+                </NavLink>
+                <div class="sb-sidenav-menu-heading">Interface</div>
+                <a class="nav-link collapsed" href="#" data-bs-toggle="collapse" data-bs-target="#collapseLayouts" aria-expanded="false" aria-controls="collapseLayouts">
+                    <div class="sb-nav-link-icon">
+                        <i class="fas fa-columns"></i>
+                    </div>
+                    Layouts
+                    <div class="sb-sidenav-collapse-arrow">
+                        <i class="fas fa-angle-down"></i>
+                    </div>
+                </a>
+                <div class="collapse" id="collapseLayouts" aria-labelledby="headingOne" data-bs-parent="#sidenavAccordion">
+                    <nav class="sb-sidenav-menu-nested nav">
+                        <a class="nav-link" href="layout-static.html">Static Navigation</a>
+                        <a class="nav-link" href="layout-sidenav-light.html">Light Sidenav</a>
+                    </nav>
+                </div>
+                <NavLink class="nav-link" href="Canchas">
+                    <div class="sb-nav-link-icon">
+                        <i class="fas fa-futbol"></i>
+                    </div>
+                    Canchas
+                </NavLink>
+                <NavLink class="nav-link" href="Usuarios">
+                    <div class="sb-nav-link-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    Usuarios
+                </NavLink>
+                <NavLink class="nav-link" href="Reservas">
+                    <div class="sb-nav-link-icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    Reservas
+                </NavLink>
+                <NavLink class="nav-link" href="Pagos">
+                    <div class="sb-nav-link-icon">
+                        <i class="fas fa-credit-card"></i>
+                    </div>
+                    Pagos
+                </NavLink>
+                <NavLink class="nav-link" href="MetodosDePago">
+                    <div class="sb-nav-link-icon">
+                        <i class="fas fa-money-check-alt"></i>
+                    </div>
+                    Métodos de pago
+                </NavLink>
+                <NavLink class="nav-link" href="EstadosDeReserva">
+                    <div class="sb-nav-link-icon">
+                        <i class="fas fa-list"></i>
+                    </div>
+                    Estados de reserva
+                </NavLink>
+            </div>
         </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="Canchas">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Canchas
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="Usuarios">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Usuarios
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="Reservas">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Reservas
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="Pagos">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Pagos
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="MetodosDePago">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Metodos de pago
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="EstadosDeReserva">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Estados de reserva
-            </NavLink>
+        <div class="sb-sidenav-footer">
+            <div class="small">Logged in as:</div>
+            Start Bootstrap
         </div>
     </nav>
 </div>
