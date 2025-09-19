@@ -1,0 +1,47 @@
+@using System.Reflection
+@typeparam TItem
+
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="fas fa-table me-1"></i>
+        Listado de @typeof(TItem).Name
+    </div>
+    <div class="card-body">
+        <div class="datatable-wrapper datatable-loading no-footer sortable searchable fixed-columns">
+            <div class="datatable-container">
+                <table id="@TableId" class="datatable-table table table-bordered">
+                    <thead>
+                        <tr>
+                            @foreach (var prop in Props)
+                            {
+                                <th>@prop.Name</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Items != null)
+                        {
+                            foreach (var item in Items)
+                            {
+                                <tr>
+                                    @foreach (var prop in Props)
+                                    {
+                                        <td>@(prop.GetValue(item))</td>
+                                    }
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public IEnumerable<TItem>? Items { get; set; }
+
+    private PropertyInfo[] Props => typeof(TItem).GetProperties(BindingFlags.Public | BindingFlags.Instance);
+
+    private string TableId { get; } = $"datatable_{Guid.NewGuid().ToString("N")}";
+}

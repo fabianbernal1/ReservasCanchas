@@ -1,0 +1,45 @@
+﻿@page "/listar"
+@using ReservasCanchas_Web.Components.Shared
+@using ReservasCanchas_Web.Models
+
+<h3>Listar Usuarios</h3>
+<ListarGenerico TItem="Usuario" Items="usuarios" />
+
+@code {
+    private List<Usuario> usuarios = new()
+    {
+        new Usuario
+        {
+            UsuarioId = 1,
+            Nombre = "Juan",
+            PrimerApellido = "Pérez",
+            SegundoApellido = "Gómez",
+            Cedula = "123456789",
+            Correo = "juan.perez@email.com",
+            Telefono = "88889999",
+            FechaRegistro = DateTime.Now.AddDays(-10)
+        },
+        new Usuario
+        {
+            UsuarioId = 2,
+            Nombre = "Ana",
+            PrimerApellido = "López",
+            SegundoApellido = "Martínez",
+            Cedula = "987654321",
+            Correo = "ana.lopez@email.com",
+            Telefono = "87776666",
+            FechaRegistro = DateTime.Now.AddDays(-5)
+        },
+        new Usuario
+        {
+            UsuarioId = 3,
+            Nombre = "Carlos",
+            PrimerApellido = "Ramírez",
+            SegundoApellido = null,
+            Cedula = "112233445",
+            Correo = "carlos.ramirez@email.com",
+            Telefono = null,
+            FechaRegistro = DateTime.Now
+        }
+    };
+}
