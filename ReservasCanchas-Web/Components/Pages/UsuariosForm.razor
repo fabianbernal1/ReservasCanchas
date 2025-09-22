@@ -1,0 +1,43 @@
+﻿@page "/usuarios-form"
+@using ReservasCanchas_Web.Models
+@using ReservasCanchas_Web.Components.Shared
+
+<h3>Crear Usuario</h3>
+
+<FormularioGenerico TItem="Usuario"
+              Model="usuario"
+              OnValidSubmit="GuardarUsuario"
+              IsEdit="false" />
+
+@if (usuarioGuardado != null)
+{
+    <div class="alert alert-success mt-3">
+        Usuario guardado: @usuarioGuardado.Nombre @usuarioGuardado.PrimerApellido (@usuarioGuardado.Correo)
+    </div>
+}
+
+@code {
+    private Usuario usuario = new Usuario
+    {
+        FechaRegistro = DateTime.Now
+    };
+
+    private Usuario? usuarioGuardado;
+
+    private Task GuardarUsuario(Usuario u)
+    {
+        usuarioGuardado = new Usuario
+        {
+            UsuarioId = u.UsuarioId,
+            Nombre = u.Nombre,
+            PrimerApellido = u.PrimerApellido,
+            SegundoApellido = u.SegundoApellido,
+            Cedula = u.Cedula,
+            Correo = u.Correo,
+            Telefono = u.Telefono,
+            FechaRegistro = u.FechaRegistro
+        };
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+}
