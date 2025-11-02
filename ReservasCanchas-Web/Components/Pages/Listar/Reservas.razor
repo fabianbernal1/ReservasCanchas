@@ -1,0 +1,71 @@
+﻿@page "/reservas"
+@using ReservasCanchas_Web.Models
+@inject ReservasCanchas_Web.Servicios.Interfaces.IReservaService ReservaService
+@inject IJSRuntime JS
+
+<h3>Reservas</h3>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <table class="table table-striped table-bordered">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Usuario</th>
+                    <th>Cancha</th>
+                    <th>Fecha</th>
+                    <th>Hora inicio</th>
+                    <th>Hora fin</th>
+                    <th>Estado</th>
+                    <th style="width:120px">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (reservas is null)
+                {
+                    <tr><td colspan="8">Cargando...</td></tr>
+                }
+                else if (!reservas.Any())
+                {
+                    <tr><td colspan="8">No hay registros.</td></tr>
+                }
+                else
+                {
+                    @foreach (var r in reservas)
+                    {
+                        <tr>
+                            <td>@r.ReservaId</td>
+                            <td>@(r.Usuario?.Nombre ?? $"#{r.UsuarioId}")</td>
+                            <td>@(r.Cancha?.Nombre ?? $"#{r.CanchaId}")</td>
+                            <td>@r.FechaReserva.ToString("yyyy-MM-dd")</td>
+                            <td>@r.HoraInicio</td>
+                            <td>@r.HoraFin</td>
+                            <td>@(r.Estado?.NombreEstado ?? $"#{r.EstadoId}")</td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" @onclick="() => ConfirmDelete(r.ReservaId)">Eliminar</button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private IEnumerable<Reserva>? reservas;
+
+    protected override async Task OnInitializedAsync()
+    {
+        reservas = await ReservaService.GetAllAsync();
+    }
+
+    private async Task ConfirmDelete(int id)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "¿Desea eliminar este registro?"))
+        {
+            await ReservaService.DeleteAsync(id);
+            reservas = await ReservaService.GetAllAsync();
+        }
+    }
+}

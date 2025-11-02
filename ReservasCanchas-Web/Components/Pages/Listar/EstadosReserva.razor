@@ -1,0 +1,61 @@
+﻿@page "/estados-reserva"
+@using ReservasCanchas_Web.Models
+@inject ReservasCanchas_Web.Servicios.Interfaces.IEstadoReservaService EstadoService
+@inject IJSRuntime JS
+
+<h3>Estados de Reserva</h3>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <table class="table table-striped table-bordered">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre estado</th>
+                    <th style="width:120px">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (items is null)
+                {
+                    <tr><td colspan="3">Cargando...</td></tr>
+                }
+                else if (!items.Any())
+                {
+                    <tr><td colspan="3">No hay registros.</td></tr>
+                }
+                else
+                {
+                    @foreach (var e in items)
+                    {
+                        <tr>
+                            <td>@e.EstadoId</td>
+                            <td>@e.NombreEstado</td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" @onclick="() => ConfirmDelete(e.EstadoId)">Eliminar</button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private IEnumerable<EstadoReserva>? items;
+
+    protected override async Task OnInitializedAsync()
+    {
+        items = await EstadoService.GetAllAsync();
+    }
+
+    private async Task ConfirmDelete(int id)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "¿Desea eliminar este estado?"))
+        {
+            await EstadoService.DeleteAsync(id);
+            items = await EstadoService.GetAllAsync();
+        }
+    }
+}

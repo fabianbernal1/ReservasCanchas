@@ -1,0 +1,67 @@
+﻿@page "/canchas"
+@using ReservasCanchas_Web.Models
+@inject ReservasCanchas_Web.Servicios.Interfaces.ICanchaService CanchaService
+@inject IJSRuntime JS
+
+<h3>Canchas</h3>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <table class="table table-striped table-bordered">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Ubicación</th>
+                    <th>Tipo</th>
+                    <th>Precio/hora</th>
+                    <th style="width:120px">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (items is null)
+                {
+                    <tr><td colspan="6">Cargando...</td></tr>
+                }
+                else if (!items.Any())
+                {
+                    <tr><td colspan="6">No hay registros.</td></tr>
+                }
+                else
+                {
+                    @foreach (var c in items)
+                    {
+                        <tr>
+                            <td>@c.CanchaId</td>
+                            <td>@c.Nombre</td>
+                            <td>@c.Ubicacion</td>
+                            <td>@c.Tipo</td>
+                            <td>@c.PrecioHora.ToString("C")</td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" @onclick="() => ConfirmDelete(c.CanchaId)">Eliminar</button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private IEnumerable<Cancha>? items;
+
+    protected override async Task OnInitializedAsync()
+    {
+        items = await CanchaService.GetAllAsync();
+    }
+
+    private async Task ConfirmDelete(int id)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "¿Desea eliminar esta cancha?"))
+        {
+            await CanchaService.DeleteAsync(id);
+            items = await CanchaService.GetAllAsync();
+        }
+    }
+}
