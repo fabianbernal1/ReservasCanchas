@@ -1,0 +1,95 @@
+﻿@page "/usuarios/nuevo"
+@page "/usuarios/editar/{Id:int}"
+@using ReservasCanchas_Web.Models
+@inject ReservasCanchas_Web.Servicios.Interfaces.IUsuarioService UsuarioService
+@inject IJSRuntime JS
+@inject NavigationManager NavManager
+
+<div class="container-fluid px-4">
+    <h3 class="mt-4">@((Id == 0) ? "Nuevo usuario" : "Editar usuario")</h3>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <EditForm Model="model" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="mb-3">
+                    <label class="form-label">Nombre</label>
+                    <InputText class="form-control" @bind-Value="model.Nombre" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Primer apellido</label>
+                    <InputText class="form-control" @bind-Value="model.PrimerApellido" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Segundo apellido</label>
+                    <InputText class="form-control" @bind-Value="model.SegundoApellido" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Cédula</label>
+                    <InputText class="form-control" @bind-Value="model.Cedula" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Correo</label>
+                    <InputText class="form-control" @bind-Value="model.Correo" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Teléfono</label>
+                    <InputText class="form-control" @bind-Value="model.Telefono" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Fecha registro</label>
+                    <InputDate class="form-control" @bind-Value="model.FechaRegistro" />
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                    <button type="button" class="btn btn-secondary" @onclick="@(() => NavManager.NavigateTo("/usuarios"))">Cancelar</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Usuario model = new Usuario();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id != 0)
+        {
+            var existing = await UsuarioService.GetByIdAsync(Id);
+            if (existing != null) model = existing;
+        }
+        else
+        {
+            model.FechaRegistro = DateTime.Now;
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            if (Id == 0)
+                await UsuarioService.AddAsync(model);
+            else
+                await UsuarioService.UpdateAsync(model);
+
+            NavManager.NavigateTo("/usuarios");
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error guardando usuario: {ex.Message}");
+        }
+    }
+}

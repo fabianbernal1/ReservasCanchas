@@ -17,7 +17,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Components\Pages\CrearEditar\" />
     <Folder Include="Servicios\Interfaces\" />
     <Folder Include="Servicios\Implementaciones\" />
   </ItemGroup>

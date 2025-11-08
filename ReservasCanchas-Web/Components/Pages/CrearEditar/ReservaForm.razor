@@ -1,0 +1,160 @@
+﻿@page "/reservas/nuevo"
+@page "/reservas/editar/{Id:int}"
+@using ReservasCanchas_Web.Models
+@inject ReservasCanchas_Web.Servicios.Interfaces.IReservaService ReservaService
+@inject ReservasCanchas_Web.Servicios.Interfaces.IUsuarioService UsuarioService
+@inject ReservasCanchas_Web.Servicios.Interfaces.ICanchaService CanchaService
+@inject ReservasCanchas_Web.Servicios.Interfaces.IEstadoReservaService EstadoService
+@inject IJSRuntime JS
+@inject NavigationManager NavManager
+
+<div class="container-fluid px-4">
+    <h3 class="mt-4">@((Id == 0) ? "Nueva reserva" : "Editar reserva")</h3>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <EditForm Model="model" FormName="ReservaForm" OnValidSubmit="HandleValidSubmit" OnInvalidSubmit="HandleInvalidSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="mb-3">
+                    <label class="form-label">Usuario</label>
+                    <InputSelect class="form-select" @bind-Value="model.UsuarioId">
+                        <option value="0">-- Seleccione usuario --</option>
+                        @foreach (var u in usuarios)
+                        {
+                            <option value="@u.UsuarioId">@($"{u.Nombre} {u.PrimerApellido}{(string.IsNullOrEmpty(u.SegundoApellido) ? string.Empty : " " + u.SegundoApellido)}")</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => model.UsuarioId)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Cancha</label>
+                    <InputSelect class="form-select" @bind-Value="model.CanchaId">
+                        <option value="0">-- Seleccione cancha --</option>
+                        @foreach (var c in canchas)
+                        {
+                            <option value="@c.CanchaId">@c.Nombre</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => model.CanchaId)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Fecha de reserva</label>
+                    <InputDate class="form-control" @bind-Value="model.FechaReserva" />
+                    <ValidationMessage For="@(() => model.FechaReserva)" />
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Hora inicio</label>
+                        <InputText type="time"
+                                   class="form-control"
+                                   @bind-Value="horaInicioString" />
+                        <ValidationMessage For="@(() => model.HoraInicio)" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Hora fin</label>
+                        <InputText type="time" class="form-control" @bind-Value="horaFinString" />
+                        <ValidationMessage For="@(() => model.HoraFin)" />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Estado</label>
+                    <InputSelect class="form-select" @bind-Value="model.EstadoId">
+                        <option value="0">-- Seleccione estado --</option>
+                        @foreach (var s in estados)
+                        {
+                            <option value="@s.EstadoId">@s.NombreEstado</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => model.EstadoId)" />
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                    <button type="button" class="btn btn-secondary" @onclick="@(() => NavManager.NavigateTo("/reservas"))">Cancelar</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Reserva model = new Reserva();
+    private IEnumerable<Usuario> usuarios = Enumerable.Empty<Usuario>();
+    private IEnumerable<Cancha> canchas = Enumerable.Empty<Cancha>();
+    private IEnumerable<EstadoReserva> estados = Enumerable.Empty<EstadoReserva>();
+
+    // helper strings para inputs type=time
+    private string horaInicioString
+    {
+        get => model.HoraInicio.ToString(@"hh\:mm");
+        set
+        {
+            if (TimeSpan.TryParse(value, out var ts))
+                model.HoraInicio = ts;
+            else
+                model.HoraInicio = TimeSpan.Zero;
+        }
+    }
+
+    private string horaFinString
+    {
+        get => model.HoraFin.ToString(@"hh\:mm");
+        set
+        {
+            if (TimeSpan.TryParse(value, out var ts))
+                model.HoraFin = ts;
+            else
+                model.HoraFin = TimeSpan.Zero;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        usuarios = await UsuarioService.GetAllAsync();
+        canchas = await CanchaService.GetAllAsync();
+        estados = await EstadoService.GetAllAsync();
+
+        if (Id != 0)
+        {
+            var existing = await ReservaService.GetByIdAsync(Id);
+            if (existing != null) model = existing;
+        }
+        else
+        {
+            model.FechaReserva = DateTime.Today;
+            model.HoraInicio = new TimeSpan(9, 0, 0);
+            model.HoraFin = new TimeSpan(10, 0, 0);
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            if (Id == 0)
+                await ReservaService.AddAsync(model);
+            else
+                await ReservaService.UpdateAsync(model);
+
+            NavManager.NavigateTo("/reservas");
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error guardando reserva: {ex.Message}");
+        }
+    }
+
+    private Task HandleInvalidSubmit(EditContext ctx)
+    {
+        // opcional: foco en primer campo inválido o logging
+        return Task.CompletedTask;
+    }
+}

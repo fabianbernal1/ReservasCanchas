@@ -1,0 +1,71 @@
+@page "/metodos-pago"
+@using ReservasCanchas_Web.Models
+@inject ReservasCanchas_Web.Servicios.Interfaces.IMetodoPagoService MetodoService
+@inject IJSRuntime JS
+@inject NavigationManager NavManager
+
+<h3>Métodos de pago</h3>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between mb-3">
+            <div></div>
+            <button class="btn btn-primary" @onclick="Crear">Nuevo</button>
+        </div>
+
+        <table class="table table-striped table-bordered">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre método</th>
+                    <th style="width:160px">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (items is null)
+                {
+                    <tr><td colspan="3">Cargando...</td></tr>
+                }
+                else if (!items.Any())
+                {
+                    <tr><td colspan="3">No hay registros.</td></tr>
+                }
+                else
+                {
+                    @foreach (var m in items)
+                    {
+                        <tr>
+                            <td>@m.MetodoId</td>
+                            <td>@m.NombreMetodo</td>
+                            <td>
+                                <button class="btn btn-sm btn-secondary me-2" @onclick="() => Editar(m.MetodoId)">Editar</button>
+                                <button class="btn btn-sm btn-danger" @onclick="() => ConfirmDelete(m.MetodoId)">Eliminar</button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private IEnumerable<MetodoPago>? items;
+
+    protected override async Task OnInitializedAsync()
+    {
+        items = await MetodoService.GetAllAsync();
+    }
+
+    private void Crear() => NavManager.NavigateTo("/metodos-pago/nuevo");
+    private void Editar(int id) => NavManager.NavigateTo($"/metodos-pago/editar/{id}");
+
+    private async Task ConfirmDelete(int id)
+    {
+        if (await JS.InvokeAsync<bool>("confirm", "¿Desea eliminar este método de pago?"))
+        {
+            await MetodoService.DeleteAsync(id);
+            items = await MetodoService.GetAllAsync();
+        }
+    }
+}

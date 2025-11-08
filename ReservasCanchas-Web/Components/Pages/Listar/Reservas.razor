@@ -1,12 +1,21 @@
 ﻿@page "/reservas"
 @using ReservasCanchas_Web.Models
 @inject ReservasCanchas_Web.Servicios.Interfaces.IReservaService ReservaService
+@inject ReservasCanchas_Web.Servicios.Interfaces.IUsuarioService UsuarioService
+@inject ReservasCanchas_Web.Servicios.Interfaces.ICanchaService CanchaService
+@inject ReservasCanchas_Web.Servicios.Interfaces.IEstadoReservaService EstadoService
 @inject IJSRuntime JS
+@inject NavigationManager NavManager
 
 <h3>Reservas</h3>
 
 <div class="card mb-4">
     <div class="card-body">
+        <div class="d-flex justify-content-between mb-3">
+            <div></div>
+            <button type="button" class="btn btn-primary" @onclick="Crear">Nuevo</button>
+        </div>
+
         <table class="table table-striped table-bordered">
             <thead class="table-light">
                 <tr>
@@ -17,31 +26,32 @@
                     <th>Hora inicio</th>
                     <th>Hora fin</th>
                     <th>Estado</th>
-                    <th style="width:120px">Acciones</th>
+                    <th style="width:160px">Acciones</th>
                 </tr>
             </thead>
             <tbody>
-                @if (reservas is null)
+                @if (items is null)
                 {
                     <tr><td colspan="8">Cargando...</td></tr>
                 }
-                else if (!reservas.Any())
+                else if (!items.Any())
                 {
                     <tr><td colspan="8">No hay registros.</td></tr>
                 }
                 else
                 {
-                    @foreach (var r in reservas)
+                    @foreach (var r in items)
                     {
                         <tr>
                             <td>@r.ReservaId</td>
-                            <td>@(r.Usuario?.Nombre ?? $"#{r.UsuarioId}")</td>
-                            <td>@(r.Cancha?.Nombre ?? $"#{r.CanchaId}")</td>
+                            <td>@(r.Usuario is null ? r.UsuarioId.ToString() : $"{r.Usuario.Nombre} {r.Usuario.PrimerApellido}")</td>
+                            <td>@(r.Cancha?.Nombre ?? r.CanchaId.ToString())</td>
                             <td>@r.FechaReserva.ToString("yyyy-MM-dd")</td>
-                            <td>@r.HoraInicio</td>
-                            <td>@r.HoraFin</td>
-                            <td>@(r.Estado?.NombreEstado ?? $"#{r.EstadoId}")</td>
+                            <td>@r.HoraInicio.ToString()</td>
+                            <td>@r.HoraFin.ToString()</td>
+                            <td>@(r.Estado?.NombreEstado ?? r.EstadoId.ToString())</td>
                             <td>
+                                <button class="btn btn-sm btn-secondary me-2" @onclick="() => Editar(r.ReservaId)">Editar</button>
                                 <button class="btn btn-sm btn-danger" @onclick="() => ConfirmDelete(r.ReservaId)">Eliminar</button>
                             </td>
                         </tr>
@@ -53,19 +63,25 @@
 </div>
 
 @code {
-    private IEnumerable<Reserva>? reservas;
+    private IEnumerable<Reserva>? items;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
     {
-        reservas = await ReservaService.GetAllAsync();
+        items = await ReservaService.GetAllAsync();
+        // Si las relaciones no vienen incluidas por el repo, los campos mostrarán IDs
     }
+
+    private void Crear() => NavManager.NavigateTo("/reservas/nuevo");
+    private void Editar(int id) => NavManager.NavigateTo($"/reservas/editar/{id}");
 
     private async Task ConfirmDelete(int id)
     {
-        if (await JS.InvokeAsync<bool>("confirm", "¿Desea eliminar este registro?"))
+        if (await JS.InvokeAsync<bool>("confirm", "¿Desea eliminar esta reserva?"))
         {
             await ReservaService.DeleteAsync(id);
-            reservas = await ReservaService.GetAllAsync();
+            await LoadAsync();
         }
     }
 }

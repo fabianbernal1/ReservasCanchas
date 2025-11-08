@@ -1,0 +1,104 @@
+﻿@page "/pagos/nuevo"
+@page "/pagos/editar/{Id:int}"
+@using ReservasCanchas_Web.Models
+@using Microsoft.JSInterop
+@inject ReservasCanchas_Web.Servicios.Interfaces.IPagoService PagoService
+@inject ReservasCanchas_Web.Servicios.Interfaces.IMetodoPagoService MetodoService
+@inject ReservasCanchas_Web.Servicios.Interfaces.IReservaService ReservaService
+@inject IJSRuntime JS
+@inject NavigationManager NavManager
+
+<div class="container-fluid px-4">
+    <h3 class="mt-4">@((Id == 0) ? "Nuevo pago" : "Editar pago")</h3>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <EditForm Model="model" FormName="PagoForm" OnValidSubmit="HandleValidSubmit" OnInvalidSubmit="HandleInvalidSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="mb-3">
+                    <label class="form-label">Reserva</label>
+                    <InputSelect class="form-select" @bind-Value="model.ReservaId">
+                        <option value="0">-- Seleccione reserva --</option>
+                        @foreach (var r in reservas)
+                        {
+                            <option value="@r.ReservaId">@($"{r.ReservaId} - {r.FechaReserva:dd/MM/yyyy} {r.HoraInicio.ToString(@"hh\:mm")}")</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => model.ReservaId)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Monto</label>
+                    <InputNumber class="form-control" @bind-Value="model.Monto" step="0.01" />
+                    <ValidationMessage For="@(() => model.Monto)" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Método de pago</label>
+                    <InputSelect class="form-select" @bind-Value="model.MetodoId">
+                        <option value="0">-- Seleccione --</option>
+                        @foreach (var m in metodos)
+                        {
+                            <option value="@m.MetodoId">@m.NombreMetodo</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => model.MetodoId)" />
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                    <button type="button" class="btn btn-secondary" @onclick="@(() => NavManager.NavigateTo("/pagos"))">Cancelar</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Pago model = new Pago();
+    private IEnumerable<MetodoPago> metodos = Enumerable.Empty<MetodoPago>();
+    private IEnumerable<Reserva> reservas = Enumerable.Empty<Reserva>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        metodos = await MetodoService.GetAllAsync();
+        reservas = await ReservaService.GetAllAsync();
+
+        if (Id != 0)
+        {
+            var existing = await PagoService.GetByIdAsync(Id);
+            if (existing != null) model = existing;
+        }
+        else
+        {
+            model.FechaPago = DateTime.Now;
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            if (Id == 0)
+                await PagoService.AddAsync(model);
+            else
+                await PagoService.UpdateAsync(model);
+
+            NavManager.NavigateTo("/pagos");
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error guardando pago: {ex.Message}");
+        }
+    }
+
+    private Task HandleInvalidSubmit(EditContext context)
+    {
+        // se puede usar para debug o para foco en el primer error
+        return Task.CompletedTask;
+    }
+}

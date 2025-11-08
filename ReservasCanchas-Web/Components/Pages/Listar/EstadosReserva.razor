@@ -2,17 +2,23 @@
 @using ReservasCanchas_Web.Models
 @inject ReservasCanchas_Web.Servicios.Interfaces.IEstadoReservaService EstadoService
 @inject IJSRuntime JS
+@inject NavigationManager NavManager
 
-<h3>Estados de Reserva</h3>
+<h3>Estados de reserva</h3>
 
 <div class="card mb-4">
     <div class="card-body">
+        <div class="d-flex justify-content-between mb-3">
+            <div></div>
+            <button type="button" class="btn btn-primary" @onclick="Crear">Nuevo</button>
+        </div>
+
         <table class="table table-striped table-bordered">
             <thead class="table-light">
                 <tr>
                     <th>ID</th>
                     <th>Nombre estado</th>
-                    <th style="width:120px">Acciones</th>
+                    <th style="width:160px">Acciones</th>
                 </tr>
             </thead>
             <tbody>
@@ -32,6 +38,7 @@
                             <td>@e.EstadoId</td>
                             <td>@e.NombreEstado</td>
                             <td>
+                                <button class="btn btn-sm btn-secondary me-2" @onclick="() => Editar(e.EstadoId)">Editar</button>
                                 <button class="btn btn-sm btn-danger" @onclick="() => ConfirmDelete(e.EstadoId)">Eliminar</button>
                             </td>
                         </tr>
@@ -49,6 +56,20 @@
     {
         items = await EstadoService.GetAllAsync();
     }
+
+    private async Task Crear()
+    {
+        // traza para verificar que el handler se ejecuta
+        await JS.InvokeVoidAsync("console.debug", "Crear clicked - navegando a /estados-reserva/nuevo");
+
+        // navega con ruta relativa (respeta <base href>)
+        NavManager.NavigateTo("estados-reserva/nuevo");
+
+        // Si sigue sin funcionar, prueba forzando carga completa:
+        // NavManager.NavigateTo("estados-reserva/nuevo", forceLoad: true);
+    }
+
+    private void Editar(int id) => NavManager.NavigateTo($"/estados-reserva/editar/{id}");
 
     private async Task ConfirmDelete(int id)
     {

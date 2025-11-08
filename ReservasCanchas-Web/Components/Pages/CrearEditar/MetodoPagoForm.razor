@@ -1,0 +1,62 @@
+﻿@page "/metodos-pago/nuevo"
+@page "/metodos-pago/editar/{Id:int}"
+@using ReservasCanchas_Web.Models
+@using Microsoft.JSInterop
+@inject ReservasCanchas_Web.Servicios.Interfaces.IMetodoPagoService MetodoService
+@inject IJSRuntime JS
+@inject NavigationManager NavManager
+
+<div class="container-fluid px-4">
+    <h3 class="mt-4">@((Id == 0) ? "Nuevo método de pago" : "Editar método de pago")</h3>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <EditForm Model="model" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+
+                <div class="mb-3">
+                    <label class="form-label">Nombre método</label>
+                    <InputText class="form-control" @bind-Value="model.NombreMetodo" />
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                    <button type="button" class="btn btn-secondary" @onclick="@(() => NavManager.NavigateTo("/metodos-pago"))">Cancelar</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private MetodoPago model = new MetodoPago();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id != 0)
+        {
+            var existing = await MetodoService.GetByIdAsync(Id);
+            if (existing != null) model = existing;
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            if (Id == 0)
+                await MetodoService.AddAsync(model);
+            else
+                await MetodoService.UpdateAsync(model);
+
+            NavManager.NavigateTo("/metodos-pago");
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error guardando método: {ex.Message}");
+        }
+    }
+}

@@ -8,11 +8,10 @@ namespace ReservasCanchas_Web.Models
     public class MetodoPago
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)] 
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int MetodoId { get; set; }
-
         [Required]
         [StringLength(50)]
-        public string NombreMetodo { get; set; } = string.Empty; 
+        public string NombreMetodo { get; set; } = string.Empty;
     }
 }
