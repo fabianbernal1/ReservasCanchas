@@ -1,13 +1,18 @@
 ﻿@page "/estados-reserva/nuevo"
 @page "/estados-reserva/editar/{Id:int}"
+@using System.Net.Http.Json
 @using ReservasCanchas_Web.Models
-@using Microsoft.JSInterop
-@inject ReservasCanchas_Web.Servicios.Interfaces.IEstadoReservaService EstadoService
+@inject IHttpClientFactory HttpFactory
 @inject IJSRuntime JS
 @inject NavigationManager NavManager
 
 <div class="container-fluid px-4">
     <h3 class="mt-4">@((Id == 0) ? "Nuevo estado de reserva" : "Editar estado de reserva")</h3>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
 
     <div class="card mb-4">
         <div class="card-body">
@@ -34,13 +39,22 @@
     [Parameter] public int Id { get; set; }
 
     private EstadoReserva model = new EstadoReserva();
+    private string? errorMessage;
+    private HttpClient Api => HttpFactory.CreateClient("ApiClient");
 
     protected override async Task OnInitializedAsync()
     {
-        if (Id != 0)
+        try
         {
-            var existing = await EstadoService.GetByIdAsync(Id);
-            if (existing != null) model = existing;
+            if (Id != 0)
+            {
+                var existing = await Api.GetFromJsonAsync<EstadoReserva>($"api/estadosreserva/{Id}");
+                if (existing != null) model = existing;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error cargando estado: {ex.Message}";
         }
     }
 
@@ -49,12 +63,21 @@
     {
         try
         {
+            HttpResponseMessage resp;
             if (Id == 0)
-                await EstadoService.AddAsync(model);
+                resp = await Api.PostAsJsonAsync("api/estadosreserva", model);
             else
-                await EstadoService.UpdateAsync(model);
+                resp = await Api.PutAsJsonAsync($"api/estadosreserva/{Id}", model);
 
-            NavManager.NavigateTo("/estados-reserva");
+            if (resp.IsSuccessStatusCode)
+            {
+                NavManager.NavigateTo("/estados-reserva");
+            }
+            else
+            {
+                var detail = await resp.Content.ReadAsStringAsync();
+                await JS.InvokeVoidAsync("alert", $"Error guardando estado: {resp.StatusCode} - {detail}");
+            }
         }
         catch (Exception ex)
         {
@@ -64,7 +87,6 @@
 
     private Task HandleInvalidSubmit(EditContext context)
     {
-        // útil para debug si la validación falla
         return Task.CompletedTask;
     }
 }

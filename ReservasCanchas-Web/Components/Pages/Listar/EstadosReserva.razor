@@ -1,6 +1,6 @@
 ﻿@page "/estados-reserva"
 @using ReservasCanchas_Web.Models
-@inject ReservasCanchas_Web.Servicios.Interfaces.IEstadoReservaService EstadoService
+@inject IHttpClientFactory HttpFactory
 @inject IJSRuntime JS
 @inject NavigationManager NavManager
 
@@ -10,14 +10,14 @@
     <div class="card-body">
         <div class="d-flex justify-content-between mb-3">
             <div></div>
-            <button type="button" class="btn btn-primary" @onclick="Crear">Nuevo</button>
+            <button class="btn btn-primary" @onclick="Crear">Nuevo</button>
         </div>
 
         <table class="table table-striped table-bordered">
             <thead class="table-light">
                 <tr>
                     <th>ID</th>
-                    <th>Nombre estado</th>
+                    <th>Nombre</th>
                     <th style="width:160px">Acciones</th>
                 </tr>
             </thead>
@@ -51,32 +51,42 @@
 
 @code {
     private IEnumerable<EstadoReserva>? items;
+    private HttpClient Api => HttpFactory.CreateClient("ApiClient");
 
     protected override async Task OnInitializedAsync()
     {
-        items = await EstadoService.GetAllAsync();
+        await Load();
     }
 
-    private async Task Crear()
+    private async Task Load()
     {
-        // traza para verificar que el handler se ejecuta
-        await JS.InvokeVoidAsync("console.debug", "Crear clicked - navegando a /estados-reserva/nuevo");
-
-        // navega con ruta relativa (respeta <base href>)
-        NavManager.NavigateTo("estados-reserva/nuevo");
-
-        // Si sigue sin funcionar, prueba forzando carga completa:
-        // NavManager.NavigateTo("estados-reserva/nuevo", forceLoad: true);
+        try
+        {
+            items = await Api.GetFromJsonAsync<IEnumerable<EstadoReserva>>("api/estadosreserva") ?? Enumerable.Empty<EstadoReserva>();
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error: {ex.Message}");
+            items = Enumerable.Empty<EstadoReserva>();
+        }
     }
 
-    private void Editar(int id) => NavManager.NavigateTo($"/estados-reserva/editar/{id}");
+    private void Crear() => NavManager.NavigateTo("/estados/nuevo");
+    private void Editar(int id) => NavManager.NavigateTo($"/estados/editar/{id}");
 
     private async Task ConfirmDelete(int id)
     {
         if (await JS.InvokeAsync<bool>("confirm", "¿Desea eliminar este estado?"))
         {
-            await EstadoService.DeleteAsync(id);
-            items = await EstadoService.GetAllAsync();
+            var resp = await Api.DeleteAsync($"api/estadosreserva/{id}");
+            if (resp.IsSuccessStatusCode)
+            {
+                await Load();
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "Error al eliminar. Revisa el servidor.");
+            }
         }
     }
 }

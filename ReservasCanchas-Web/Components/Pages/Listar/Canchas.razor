@@ -1,6 +1,6 @@
 ﻿@page "/canchas"
 @using ReservasCanchas_Web.Models
-@inject ReservasCanchas_Web.Servicios.Interfaces.ICanchaService CanchaService
+@inject IHttpClientFactory HttpFactory
 @inject IJSRuntime JS
 @inject NavigationManager NavManager
 
@@ -9,7 +9,14 @@
 <div class="card mb-4">
     <div class="card-body">
         <div class="d-flex justify-content-between mb-3">
-            <div></div>
+            <div>
+                <!-- Botones de descarga de reportes -->
+                <div class="btn-group me-2" role="group" aria-label="Reportes">
+                    <a class="btn btn-outline-secondary" href="api/reports/reservas/por-cancha/pdf" target="_blank" rel="noopener">PDF</a>
+                    <a class="btn btn-outline-secondary" href="api/reports/reservas/por-cancha/excel" target="_blank" rel="noopener">Excel</a>
+                    <a class="btn btn-outline-secondary" href="api/reports/reservas/por-cancha/word" target="_blank" rel="noopener">Word</a>
+                </div>
+            </div>
             <button class="btn btn-primary" @onclick="Crear">Nuevo</button>
         </div>
 
@@ -57,10 +64,24 @@
 
 @code {
     private IEnumerable<Cancha>? items;
+    private HttpClient Api => HttpFactory.CreateClient("ApiClient");
 
     protected override async Task OnInitializedAsync()
     {
-        items = await CanchaService.GetAllAsync();
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        try
+        {
+            items = await Api.GetFromJsonAsync<IEnumerable<Cancha>>("api/canchas") ?? Enumerable.Empty<Cancha>();
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error cargando canchas: {ex.Message}");
+            items = Enumerable.Empty<Cancha>();
+        }
     }
 
     private void Crear() => NavManager.NavigateTo("/canchas/nuevo");
@@ -70,8 +91,15 @@
     {
         if (await JS.InvokeAsync<bool>("confirm", "¿Desea eliminar esta cancha?"))
         {
-            await CanchaService.DeleteAsync(id);
-            items = await CanchaService.GetAllAsync();
+            var resp = await Api.DeleteAsync($"api/canchas/{id}");
+            if (resp.IsSuccessStatusCode)
+            {
+                await Load();
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "Error al eliminar. Revisa el servidor.");
+            }
         }
     }
 }

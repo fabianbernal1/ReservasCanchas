@@ -1,10 +1,18 @@
 ﻿@page "/usuarios"
 @using ReservasCanchas_Web.Models
-@inject ReservasCanchas_Web.Servicios.Interfaces.IUsuarioService UsuarioService
+@inject IHttpClientFactory HttpFactory
 @inject IJSRuntime JS
 @inject NavigationManager NavManager
 
 <h3>Usuarios</h3>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @errorMessage
+        <button type="button" class="btn-close" aria-label="Close" @onclick="DismissError"></button>
+    </div>
+}
 
 <div class="card mb-4">
     <div class="card-body">
@@ -61,10 +69,26 @@
 
 @code {
     private IEnumerable<Usuario>? items;
+    private string? errorMessage;
+    private HttpClient Api => HttpFactory.CreateClient("ApiClient");
 
     protected override async Task OnInitializedAsync()
     {
-        items = await UsuarioService.GetAllAsync();
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        try
+        {
+            items = await Api.GetFromJsonAsync<IEnumerable<Usuario>>("api/usuarios") ?? Enumerable.Empty<Usuario>();
+        }
+        catch (Exception ex)
+        {
+            // Evitar JS interop durante prerendering: mostrar el error en la UI en lugar de llamar a JS aquí.
+            errorMessage = $"Error al cargar usuarios: {ex.Message}";
+            items = Enumerable.Empty<Usuario>();
+        }
     }
 
     private void Crear() => NavManager.NavigateTo("/usuarios/nuevo");
@@ -74,8 +98,17 @@
     {
         if (await JS.InvokeAsync<bool>("confirm", "¿Desea eliminar este usuario?"))
         {
-            await UsuarioService.DeleteAsync(id);
-            items = await UsuarioService.GetAllAsync();
+            var resp = await Api.DeleteAsync($"api/usuarios/{id}");
+            if (resp.IsSuccessStatusCode)
+            {
+                await Load();
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "Error al eliminar. Revisa el servidor.");
+            }
         }
     }
+
+    private void DismissError() => errorMessage = null;
 }

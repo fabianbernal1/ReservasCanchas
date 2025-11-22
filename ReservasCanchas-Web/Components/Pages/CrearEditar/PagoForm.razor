@@ -1,15 +1,18 @@
 ﻿@page "/pagos/nuevo"
 @page "/pagos/editar/{Id:int}"
+@using System.Net.Http.Json
 @using ReservasCanchas_Web.Models
-@using Microsoft.JSInterop
-@inject ReservasCanchas_Web.Servicios.Interfaces.IPagoService PagoService
-@inject ReservasCanchas_Web.Servicios.Interfaces.IMetodoPagoService MetodoService
-@inject ReservasCanchas_Web.Servicios.Interfaces.IReservaService ReservaService
+@inject IHttpClientFactory HttpFactory
 @inject IJSRuntime JS
 @inject NavigationManager NavManager
 
 <div class="container-fluid px-4">
     <h3 class="mt-4">@((Id == 0) ? "Nuevo pago" : "Editar pago")</h3>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
 
     <div class="card mb-4">
         <div class="card-body">
@@ -62,20 +65,29 @@
     private Pago model = new Pago();
     private IEnumerable<MetodoPago> metodos = Enumerable.Empty<MetodoPago>();
     private IEnumerable<Reserva> reservas = Enumerable.Empty<Reserva>();
+    private string? errorMessage;
+    private HttpClient Api => HttpFactory.CreateClient("ApiClient");
 
     protected override async Task OnInitializedAsync()
     {
-        metodos = await MetodoService.GetAllAsync();
-        reservas = await ReservaService.GetAllAsync();
+        try
+        {
+            metodos = await Api.GetFromJsonAsync<IEnumerable<MetodoPago>>("api/metodospago") ?? Enumerable.Empty<MetodoPago>();
+            reservas = await Api.GetFromJsonAsync<IEnumerable<Reserva>>("api/reservas") ?? Enumerable.Empty<Reserva>();
 
-        if (Id != 0)
-        {
-            var existing = await PagoService.GetByIdAsync(Id);
-            if (existing != null) model = existing;
+            if (Id != 0)
+            {
+                var existing = await Api.GetFromJsonAsync<Pago>($"api/pagos/{Id}");
+                if (existing != null) model = existing;
+            }
+            else
+            {
+                model.FechaPago = DateTime.Now;
+            }
         }
-        else
+        catch (Exception ex)
         {
-            model.FechaPago = DateTime.Now;
+            errorMessage = $"Error cargando datos: {ex.Message}";
         }
     }
 
@@ -83,12 +95,21 @@
     {
         try
         {
+            HttpResponseMessage resp;
             if (Id == 0)
-                await PagoService.AddAsync(model);
+                resp = await Api.PostAsJsonAsync("api/pagos", model);
             else
-                await PagoService.UpdateAsync(model);
+                resp = await Api.PutAsJsonAsync($"api/pagos/{Id}", model);
 
-            NavManager.NavigateTo("/pagos");
+            if (resp.IsSuccessStatusCode)
+            {
+                NavManager.NavigateTo("/pagos");
+            }
+            else
+            {
+                var detail = await resp.Content.ReadAsStringAsync();
+                await JS.InvokeVoidAsync("alert", $"Error guardando pago: {resp.StatusCode} - {detail}");
+            }
         }
         catch (Exception ex)
         {
@@ -98,7 +119,6 @@
 
     private Task HandleInvalidSubmit(EditContext context)
     {
-        // se puede usar para debug o para foco en el primer error
         return Task.CompletedTask;
     }
 }

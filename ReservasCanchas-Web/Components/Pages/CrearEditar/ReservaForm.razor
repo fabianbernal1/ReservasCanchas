@@ -1,15 +1,18 @@
 ﻿@page "/reservas/nuevo"
 @page "/reservas/editar/{Id:int}"
+@using System.Net.Http.Json
 @using ReservasCanchas_Web.Models
-@inject ReservasCanchas_Web.Servicios.Interfaces.IReservaService ReservaService
-@inject ReservasCanchas_Web.Servicios.Interfaces.IUsuarioService UsuarioService
-@inject ReservasCanchas_Web.Servicios.Interfaces.ICanchaService CanchaService
-@inject ReservasCanchas_Web.Servicios.Interfaces.IEstadoReservaService EstadoService
+@inject IHttpClientFactory HttpFactory
 @inject IJSRuntime JS
 @inject NavigationManager NavManager
 
 <div class="container-fluid px-4">
     <h3 class="mt-4">@((Id == 0) ? "Nueva reserva" : "Editar reserva")</h3>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
 
     <div class="card mb-4">
         <div class="card-body">
@@ -90,6 +93,8 @@
     private IEnumerable<Usuario> usuarios = Enumerable.Empty<Usuario>();
     private IEnumerable<Cancha> canchas = Enumerable.Empty<Cancha>();
     private IEnumerable<EstadoReserva> estados = Enumerable.Empty<EstadoReserva>();
+    private string? errorMessage;
+    private HttpClient Api => HttpFactory.CreateClient("ApiClient");
 
     // helper strings para inputs type=time
     private string horaInicioString
@@ -118,20 +123,27 @@
 
     protected override async Task OnInitializedAsync()
     {
-        usuarios = await UsuarioService.GetAllAsync();
-        canchas = await CanchaService.GetAllAsync();
-        estados = await EstadoService.GetAllAsync();
+        try
+        {
+            usuarios = await Api.GetFromJsonAsync<IEnumerable<Usuario>>("api/usuarios") ?? Enumerable.Empty<Usuario>();
+            canchas = await Api.GetFromJsonAsync<IEnumerable<Cancha>>("api/canchas") ?? Enumerable.Empty<Cancha>();
+            estados = await Api.GetFromJsonAsync<IEnumerable<EstadoReserva>>("api/estadosreserva") ?? Enumerable.Empty<EstadoReserva>();
 
-        if (Id != 0)
-        {
-            var existing = await ReservaService.GetByIdAsync(Id);
-            if (existing != null) model = existing;
+            if (Id != 0)
+            {
+                var existing = await Api.GetFromJsonAsync<Reserva>($"api/reservas/{Id}");
+                if (existing != null) model = existing;
+            }
+            else
+            {
+                model.FechaReserva = DateTime.Today;
+                model.HoraInicio = new TimeSpan(9, 0, 0);
+                model.HoraFin = new TimeSpan(10, 0, 0);
+            }
         }
-        else
+        catch (Exception ex)
         {
-            model.FechaReserva = DateTime.Today;
-            model.HoraInicio = new TimeSpan(9, 0, 0);
-            model.HoraFin = new TimeSpan(10, 0, 0);
+            errorMessage = $"Error cargando datos: {ex.Message}";
         }
     }
 
@@ -139,12 +151,21 @@
     {
         try
         {
+            HttpResponseMessage resp;
             if (Id == 0)
-                await ReservaService.AddAsync(model);
+                resp = await Api.PostAsJsonAsync("api/reservas", model);
             else
-                await ReservaService.UpdateAsync(model);
+                resp = await Api.PutAsJsonAsync($"api/reservas/{Id}", model);
 
-            NavManager.NavigateTo("/reservas");
+            if (resp.IsSuccessStatusCode)
+            {
+                NavManager.NavigateTo("/reservas");
+            }
+            else
+            {
+                var detail = await resp.Content.ReadAsStringAsync();
+                await JS.InvokeVoidAsync("alert", $"Error guardando reserva: {resp.StatusCode} - {detail}");
+            }
         }
         catch (Exception ex)
         {
@@ -154,7 +175,6 @@
 
     private Task HandleInvalidSubmit(EditContext ctx)
     {
-        // opcional: foco en primer campo inválido o logging
         return Task.CompletedTask;
     }
 }

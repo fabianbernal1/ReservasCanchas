@@ -1,6 +1,6 @@
 @page "/metodos-pago"
 @using ReservasCanchas_Web.Models
-@inject ReservasCanchas_Web.Servicios.Interfaces.IMetodoPagoService MetodoService
+@inject IHttpClientFactory HttpFactory
 @inject IJSRuntime JS
 @inject NavigationManager NavManager
 
@@ -17,7 +17,7 @@
             <thead class="table-light">
                 <tr>
                     <th>ID</th>
-                    <th>Nombre método</th>
+                    <th>Nombre</th>
                     <th style="width:160px">Acciones</th>
                 </tr>
             </thead>
@@ -51,21 +51,42 @@
 
 @code {
     private IEnumerable<MetodoPago>? items;
+    private HttpClient Api => HttpFactory.CreateClient("ApiClient");
 
     protected override async Task OnInitializedAsync()
     {
-        items = await MetodoService.GetAllAsync();
+        await Load();
     }
 
-    private void Crear() => NavManager.NavigateTo("/metodos-pago/nuevo");
-    private void Editar(int id) => NavManager.NavigateTo($"/metodos-pago/editar/{id}");
+    private async Task Load()
+    {
+        try
+        {
+            items = await Api.GetFromJsonAsync<IEnumerable<MetodoPago>>("api/metodospago") ?? Enumerable.Empty<MetodoPago>();
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error: {ex.Message}");
+            items = Enumerable.Empty<MetodoPago>();
+        }
+    }
+
+    private void Crear() => NavManager.NavigateTo("/metodospago/nuevo");
+    private void Editar(int id) => NavManager.NavigateTo($"/metodospago/editar/{id}");
 
     private async Task ConfirmDelete(int id)
     {
-        if (await JS.InvokeAsync<bool>("confirm", "¿Desea eliminar este método de pago?"))
+        if (await JS.InvokeAsync<bool>("confirm", "¿Desea eliminar este método?"))
         {
-            await MetodoService.DeleteAsync(id);
-            items = await MetodoService.GetAllAsync();
+            var resp = await Api.DeleteAsync($"api/metodospago/{id}");
+            if (resp.IsSuccessStatusCode)
+            {
+                await Load();
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "Error al eliminar. Revisa el servidor.");
+            }
         }
     }
 }
