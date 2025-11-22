@@ -1,60 +1,53 @@
 ﻿@page "/canchas/nuevo"
 @page "/canchas/editar/{Id:int}"
 @using ReservasCanchas_Web.Models
-@using Microsoft.JSInterop
-@inject ReservasCanchas_Web.Servicios.Interfaces.ICanchaService CanchaService
-@inject IJSRuntime JS
+@inject IHttpClientFactory HttpFactory
 @inject NavigationManager NavManager
+@inject IJSRuntime JS
 
-<div class="container-fluid px-4">
-    <h3 class="mt-4">@((Id == 0) ? "Nueva cancha" : "Editar cancha")</h3>
+<h3>@(Id == 0 ? "Nueva cancha" : "Editar cancha")</h3>
 
-    <div class="card mb-4">
-        <div class="card-body">
-            <EditForm Model="model" OnValidSubmit="HandleValidSubmit">
-                <DataAnnotationsValidator />
-                <ValidationSummary />
+<EditForm Model="model" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
 
-                <div class="mb-3">
-                    <label class="form-label">Nombre</label>
-                    <InputText class="form-control" @bind-Value="model.Nombre" />
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Ubicación</label>
-                    <InputText class="form-control" @bind-Value="model.Ubicacion" />
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Tipo</label>
-                    <InputText class="form-control" @bind-Value="model.Tipo" />
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Precio por hora</label>
-                    <InputNumber class="form-control" @bind-Value="model.PrecioHora" />
-                </div>
-
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary">Guardar</button>
-                    <button type="button" class="btn btn-secondary" @onclick="@(() => NavManager.NavigateTo("/canchas"))">Cancelar</button>
-                </div>
-            </EditForm>
-        </div>
+    <div class="mb-3">
+        <label class="form-label">Nombre</label>
+        <InputText class="form-control" @bind-Value="model.Nombre" />
     </div>
-</div>
+
+    <div class="mb-3">
+        <label class="form-label">Ubicación</label>
+        <InputText class="form-control" @bind-Value="model.Ubicacion" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Tipo</label>
+        <InputText class="form-control" @bind-Value="model.Tipo" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Precio / hora</label>
+        <InputNumber class="form-control" @bind-Value="model.PrecioHora" />
+    </div>
+
+    <button class="btn btn-primary" type="submit">Guardar</button>
+    <button class="btn btn-secondary ms-2" type="button" @onclick="Cancelar">Cancelar</button>
+</EditForm>
 
 @code {
-    [Parameter] public int Id { get; set; }
+    [Parameter]
+    public int Id { get; set; }
 
     private Cancha model = new Cancha();
+    private HttpClient Api => HttpFactory.CreateClient("ApiClient");
 
     protected override async Task OnInitializedAsync()
     {
         if (Id != 0)
         {
-            var existing = await CanchaService.GetByIdAsync(Id);
-            if (existing != null) model = existing;
+            var fetched = await Api.GetFromJsonAsync<Cancha>($"api/canchas/{Id}");
+            if (fetched != null) model = fetched;
         }
     }
 
@@ -63,15 +56,35 @@
         try
         {
             if (Id == 0)
-                await CanchaService.AddAsync(model);
+            {
+                var resp = await Api.PostAsJsonAsync("api/canchas", model);
+                if (resp.IsSuccessStatusCode)
+                {
+                    NavManager.NavigateTo("/canchas");
+                }
+                else
+                {
+                    await JS.InvokeVoidAsync("alert", $"Error creando cancha: {resp.ReasonPhrase}");
+                }
+            }
             else
-                await CanchaService.UpdateAsync(model);
-
-            NavManager.NavigateTo("/canchas");
+            {
+                var resp = await Api.PutAsJsonAsync($"api/canchas/{Id}", model);
+                if (resp.IsSuccessStatusCode)
+                {
+                    NavManager.NavigateTo("/canchas");
+                }
+                else
+                {
+                    await JS.InvokeVoidAsync("alert", $"Error actualizando cancha: {resp.ReasonPhrase}");
+                }
+            }
         }
         catch (Exception ex)
         {
-            await JS.InvokeVoidAsync("alert", $"Error guardando cancha: {ex.Message}");
+            await JS.InvokeVoidAsync("alert", $"Error: {ex.Message}");
         }
     }
+
+    private void Cancelar() => NavManager.NavigateTo("/canchas");
 }

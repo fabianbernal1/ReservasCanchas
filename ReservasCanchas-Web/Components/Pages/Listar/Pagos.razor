@@ -1,7 +1,6 @@
 ﻿@page "/pagos"
 @using ReservasCanchas_Web.Models
-@inject ReservasCanchas_Web.Servicios.Interfaces.IPagoService PagoService
-@inject ReservasCanchas_Web.Servicios.Interfaces.IMetodoPagoService MetodoService
+@inject IHttpClientFactory HttpFactory
 @inject IJSRuntime JS
 @inject NavigationManager NavManager
 
@@ -11,7 +10,7 @@
     <div class="card-body">
         <div class="d-flex justify-content-between mb-3">
             <div></div>
-            <button type="button" class="btn btn-primary" @onclick="Crear">Nuevo</button>
+            <button class="btn btn-primary" @onclick="Crear">Nuevo</button>
         </div>
 
         <table class="table table-striped table-bordered">
@@ -40,10 +39,10 @@
                     {
                         <tr>
                             <td>@p.PagoId</td>
-                            <td>@p.ReservaId</td>
-                            <td>@p.Monto.ToString("F2")</td>
+                            <td>@(p.Reserva?.ReservaId.ToString() ?? p.ReservaId.ToString())</td>
+                            <td>@p.Monto.ToString("C")</td>
                             <td>@p.FechaPago.ToString("g")</td>
-                            <td>@(metodoMap.TryGetValue(p.MetodoId, out var nombre) ? nombre : "—")</td>
+                            <td>@p.MetodoPago?.NombreMetodo</td>
                             <td>
                                 <button class="btn btn-sm btn-secondary me-2" @onclick="() => Editar(p.PagoId)">Editar</button>
                                 <button class="btn btn-sm btn-danger" @onclick="() => ConfirmDelete(p.PagoId)">Eliminar</button>
@@ -58,19 +57,24 @@
 
 @code {
     private IEnumerable<Pago>? items;
-    private Dictionary<int, string> metodoMap = new();
+    private HttpClient Api => HttpFactory.CreateClient("ApiClient");
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadDataAsync();
+        await Load();
     }
 
-    private async Task LoadDataAsync()
+    private async Task Load()
     {
-        items = await PagoService.GetAllAsync();
-
-        var metodos = await MetodoService.GetAllAsync();
-        metodoMap = metodos.ToDictionary(m => m.MetodoId, m => m.NombreMetodo);
+        try
+        {
+            items = await Api.GetFromJsonAsync<IEnumerable<Pago>>("api/pagos") ?? Enumerable.Empty<Pago>();
+        }
+        catch (Exception ex)
+        {
+            await JS.InvokeVoidAsync("alert", $"Error: {ex.Message}");
+            items = Enumerable.Empty<Pago>();
+        }
     }
 
     private void Crear() => NavManager.NavigateTo("/pagos/nuevo");
@@ -80,8 +84,15 @@
     {
         if (await JS.InvokeAsync<bool>("confirm", "¿Desea eliminar este pago?"))
         {
-            await PagoService.DeleteAsync(id);
-            await LoadDataAsync();
+            var resp = await Api.DeleteAsync($"api/pagos/{id}");
+            if (resp.IsSuccessStatusCode)
+            {
+                await Load();
+            }
+            else
+            {
+                await JS.InvokeVoidAsync("alert", "Error al eliminar. Revisa el servidor.");
+            }
         }
     }
 }
