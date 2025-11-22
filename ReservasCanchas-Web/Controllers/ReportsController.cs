@@ -10,7 +10,6 @@ using QuestPDF.Fluent;
 using QuestPDF.Infrastructure;
 using QuestPDF.Helpers;
 using ClosedXML.Excel;
-using Xceed.Words.NET;
 using System.Text;
 using System.Net;
 
@@ -27,9 +26,10 @@ namespace ReservasCanchas_Web.Controllers
             _reservaService = reservaService;
         }
 
-        // GET api/reports/reservas/por-cancha/pdf
+        // ---------------------------------------------------------
+        // 1. REPORTE PDF (QuestPDF)
+        // ---------------------------------------------------------
         [HttpGet("reservas/por-cancha/pdf")]
-
         public async Task<IActionResult> GetReservasPorCanchaPdf()
         {
             var reservas = (await _reservaService.GetAllAsync()).ToList();
@@ -40,86 +40,105 @@ namespace ReservasCanchas_Web.Controllers
             using var ms = new MemoryStream();
             QuestPDF.Settings.License = LicenseType.Community;
 
-            // Generar PDF con QuestPDF
             Document.Create(container =>
             {
                 container.Page(page =>
                 {
                     page.Size(PageSizes.A4);
-                    page.Margin(20);
+                    page.Margin(25);
                     page.PageColor(Colors.White);
-                    page.DefaultTextStyle(x => x.FontSize(11));
+                    // CORRECCIÓN 1: Usamos Fonts.Arial en lugar de Helvetica para evitar error CS0117
+                    page.DefaultTextStyle(x => x.FontSize(10).FontFamily(Fonts.Arial));
 
-                    page.Header()
-                        .Text($"Reporte de reservas por cancha - {DateTime.Now:dd/MM/yyyy}")
-                        .SemiBold().FontSize(16).AlignCenter();
+                    // --- HEADER ---
+                    page.Header().Row(row =>
+                    {
+                        row.RelativeItem().Column(col =>
+                        {
+                            col.Item().Text("Sistema de Reservas").Bold().FontSize(20).FontColor(Colors.Blue.Medium);
+                            col.Item().Text($"Reporte General por Cancha").FontSize(14).FontColor(Colors.Grey.Darken2);
+                            col.Item().Text($"Generado el: {DateTime.Now:dd/MM/yyyy HH:mm}").FontSize(10).FontColor(Colors.Grey.Medium);
+                        });
+                    });
 
-                    page.Content().Column(col =>
+                    // --- CONTENT ---
+                    page.Content().PaddingVertical(10).Column(col =>
                     {
                         foreach (var g in groups)
                         {
-                            col.Item().PaddingTop(10).Text($"{g.Key} ({g.Count()} reservas)").Bold();
+                            col.Item().PaddingTop(15).PaddingBottom(5).Background(Colors.Grey.Lighten3).Padding(5)
+                               .Text($"{g.Key} ({g.Count()} reservas)").FontSize(12).Bold().FontColor(Colors.Black);
 
                             col.Item().Table(table =>
                             {
-                                // Definir columnas
                                 table.ColumnsDefinition(columns =>
                                 {
-                                    columns.RelativeColumn(1); // ID
-                                    columns.RelativeColumn(2); // Usuario
-                                    columns.RelativeColumn(2); // Fecha
-                                    columns.RelativeColumn(1); // Hora inicio
-                                    columns.RelativeColumn(1); // Hora fin
-                                    columns.RelativeColumn(1); // Estado
+                                    columns.ConstantColumn(40);
+                                    columns.RelativeColumn(3);
+                                    columns.RelativeColumn(2);
+                                    columns.RelativeColumn(2);
+                                    columns.RelativeColumn(2);
                                 });
 
-                                // Header
                                 table.Header(header =>
                                 {
-                                    header.Cell().Element(CellStyle).Text("ID");
-                                    header.Cell().Element(CellStyle).Text("Usuario");
-                                    header.Cell().Element(CellStyle).Text("Fecha");
-                                    header.Cell().Element(CellStyle).Text("Hora inicio");
-                                    header.Cell().Element(CellStyle).Text("Hora fin");
-                                    header.Cell().Element(CellStyle).Text("Estado");
+                                    header.Cell().Element(CellStyleHeader).Text("ID");
+                                    header.Cell().Element(CellStyleHeader).Text("Usuario");
+                                    header.Cell().Element(CellStyleHeader).Text("Fecha");
+                                    header.Cell().Element(CellStyleHeader).Text("Horario");
+                                    header.Cell().Element(CellStyleHeader).Text("Estado");
                                 });
 
+                                uint rowIndex = 0;
                                 foreach (var r in g.OrderBy(r => r.FechaReserva).ThenBy(r => r.HoraInicio))
                                 {
-                                    table.Cell().Element(CellStyle).Text(r.ReservaId.ToString());
-                                    table.Cell().Element(CellStyle).Text(r.Usuario != null ? $"{r.Usuario.Nombre} {r.Usuario.PrimerApellido}" : r.UsuarioId.ToString());
-                                    table.Cell().Element(CellStyle).Text(r.FechaReserva.ToString("dd/MM/yyyy"));
-                                    table.Cell().Element(CellStyle).Text(r.HoraInicio.ToString(@"hh\:mm"));
-                                    table.Cell().Element(CellStyle).Text(r.HoraFin.ToString(@"hh\:mm"));
-                                    table.Cell().Element(CellStyle).Text(r.Estado?.NombreEstado ?? r.EstadoId.ToString());
-                                }
+                                    var style = (rowIndex % 2 == 0) ? CellStyleOdd : (Func<IContainer, IContainer>)CellStyleEven;
 
-                                // estilo de celda
-                                static IContainer CellStyle(IContainer container)
-                                {
-                                    return container.PaddingVertical(3).PaddingHorizontal(5);
+                                    table.Cell().Element(style).Text(r.ReservaId.ToString());
+                                    table.Cell().Element(style).Text(r.Usuario != null ? $"{r.Usuario.Nombre} {r.Usuario.PrimerApellido}" : "N/A");
+                                    table.Cell().Element(style).Text(r.FechaReserva.ToString("dd/MM/yyyy"));
+                                    table.Cell().Element(style).Text($"{r.HoraInicio:hh\\:mm} - {r.HoraFin:hh\\:mm}");
+
+                                    string estado = r.Estado?.NombreEstado ?? "N/A";
+                                    table.Cell().Element(style).Text(estado).FontColor(estado == "Cancelada" ? Colors.Red.Medium : Colors.Black);
+
+                                    rowIndex++;
                                 }
                             });
                         }
                     });
 
-                    page.Footer()
-                        .AlignCenter()
-                        .Text(x =>
+                    page.Footer().PaddingTop(10).Row(row =>
+                    {
+                        row.RelativeItem().Text("Reservas Canchas Web").FontSize(9).FontColor(Colors.Grey.Medium);
+                        row.RelativeItem().AlignRight().Text(x =>
                         {
+                            x.Span("Página ");
                             x.CurrentPageNumber();
-                            x.Span(" / ");
+                            x.Span(" de ");
                             x.TotalPages();
                         });
+                    });
                 });
             }).GeneratePdf(ms);
 
             ms.Position = 0;
-            var fileName = $"reservas_por_cancha_{DateTime.Now:yyyyMMdd_HHmm}.pdf";
-            return File(ms.ToArray(), "application/pdf", fileName);
+            return File(ms.ToArray(), "application/pdf", $"reporte_reservas_{DateTime.Now:yyyyMMdd}.pdf");
         }
 
-        // GET api/reports/reservas/por-cancha/excel
+        static IContainer CellStyleHeader(IContainer container) =>
+            container.Background(Colors.Blue.Medium).Padding(5).AlignMiddle().DefaultTextStyle(x => x.FontColor(Colors.White));
+
+        static IContainer CellStyleOdd(IContainer container) =>
+            container.BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5);
+
+        static IContainer CellStyleEven(IContainer container) =>
+            container.Background(Colors.Grey.Lighten4).BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5);
+
+
+        // ---------------------------------------------------------
+        // 2. REPORTE EXCEL (ClosedXML)
+        // ---------------------------------------------------------
         [HttpGet("reservas/por-cancha/excel")]
         public async Task<IActionResult> GetReservasPorCanchaExcel()
         {
@@ -129,71 +148,85 @@ namespace ReservasCanchas_Web.Controllers
                                  .ToList();
 
             using var wb = new XLWorkbook();
+            var headerColor = XLColor.FromHtml("#007bff");
+
             foreach (var g in groups)
             {
-                // Generar un nombre de hoja único y válido (máx 31 caracteres)
-                string MakeSheetName(string key, int? id)
+                string sheetName = CleanSheetName(g.Key, g.FirstOrDefault()?.CanchaId, wb);
+                var ws = wb.Worksheets.Add(sheetName);
+
+                // --- TÍTULO PRINCIPAL ---
+                var titleRange = ws.Range(1, 1, 1, 6);
+                titleRange.Merge().Value = $"Reservas: {g.Key}";
+
+                // CORRECCIÓN 2: Separar las asignaciones de estilo línea por línea (evita CS1061)
+                var titleStyle = titleRange.Style;
+                titleStyle.Font.Bold = true;
+                titleStyle.Font.FontSize = 14;
+                titleStyle.Font.FontColor = XLColor.White;
+                titleStyle.Fill.BackgroundColor = headerColor;
+                titleStyle.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+                // --- ENCABEZADOS ---
+                var headers = new[] { "ID", "Usuario", "Fecha", "Hora Inicio", "Hora Fin", "Estado" };
+                for (int i = 0; i < headers.Length; i++)
                 {
-                    var name = string.IsNullOrWhiteSpace(key) ? "Sin_cancha" : key;
-                    // caracteres no permitidos en nombres de hoja: \ / ? * [ ]
-                    var invalid = new[] { '\\', '/', '?', '*', '[', ']' };
-                    var cleaned = new string(name.Select(ch => invalid.Contains(ch) ? '_' : ch).ToArray());
-                    // añadir id para garantizar unicidad
-                    var baseName = (cleaned.Length > 20) ? cleaned.Substring(0, 20) : cleaned;
-                    var candidate = id.HasValue ? $"{baseName}_{id.Value}" : baseName;
-                    if (candidate.Length > 31) candidate = candidate.Substring(0, 31);
-                    return candidate;
+                    ws.Cell(2, i + 1).Value = headers[i];
                 }
 
-                var firstReserva = g.FirstOrDefault();
-                var sheetName = MakeSheetName(g.Key, firstReserva?.CanchaId);
+                var headerRange = ws.Range(2, 1, 2, 6);
+                // CORRECCIÓN 3: Separar asignaciones
+                headerRange.Style.Font.Bold = true;
+                headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+                headerRange.Style.Border.BottomBorder = XLBorderStyleValues.Thin;
 
-                // Si por alguna razón existe la hoja (muy improbable) añadimos sufijo incremental
-                var finalSheetName = sheetName;
-                var suffix = 1;
-                while (wb.Worksheets.Any(ws => ws.Name.Equals(finalSheetName, StringComparison.OrdinalIgnoreCase)))
-                {
-                    var suffixStr = $"_{suffix++}";
-                    var allowedLen = 31 - suffixStr.Length;
-                    var basePart = sheetName.Length > allowedLen ? sheetName.Substring(0, allowedLen) : sheetName;
-                    finalSheetName = basePart + suffixStr;
-                }
-
-                var ws = wb.Worksheets.Add(finalSheetName);
-
-                // Headers
-                ws.Cell(1, 1).Value = "ID";
-                ws.Cell(1, 2).Value = "Usuario";
-                ws.Cell(1, 3).Value = "Fecha";
-                ws.Cell(1, 4).Value = "Hora inicio";
-                ws.Cell(1, 5).Value = "Hora fin";
-                ws.Cell(1, 6).Value = "Estado";
-
-                var row = 2;
+                // --- DATOS ---
+                var row = 3;
                 foreach (var r in g.OrderBy(r => r.FechaReserva).ThenBy(r => r.HoraInicio))
                 {
                     ws.Cell(row, 1).Value = r.ReservaId;
-                    ws.Cell(row, 2).Value = r.Usuario != null ? $"{r.Usuario.Nombre} {r.Usuario.PrimerApellido}" : r.UsuarioId.ToString();
+                    ws.Cell(row, 2).Value = r.Usuario != null ? $"{r.Usuario.Nombre} {r.Usuario.PrimerApellido}" : "N/A";
                     ws.Cell(row, 3).Value = r.FechaReserva;
                     ws.Cell(row, 3).Style.DateFormat.Format = "dd/MM/yyyy";
                     ws.Cell(row, 4).Value = r.HoraInicio.ToString(@"hh\:mm");
                     ws.Cell(row, 5).Value = r.HoraFin.ToString(@"hh\:mm");
-                    ws.Cell(row, 6).Value = r.Estado?.NombreEstado ?? r.EstadoId.ToString();
+                    ws.Cell(row, 6).Value = r.Estado?.NombreEstado ?? "N/A";
+
+                    ws.Range(row, 1, row, 6).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                     row++;
                 }
 
-                // Formato autoajuste
                 ws.Columns().AdjustToContents();
+                ws.SheetView.FreezeRows(2);
             }
 
             using var ms = new MemoryStream();
             wb.SaveAs(ms);
             ms.Position = 0;
-            var fileName = $"reservas_por_cancha_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
-            return File(ms.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+            return File(ms.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"reservas_{DateTime.Now:yyyyMMdd}.xlsx");
         }
 
-        // GET api/reports/reservas/por-cancha/word
+        private string CleanSheetName(string key, int? id, XLWorkbook wb)
+        {
+            var invalid = new[] { '\\', '/', '?', '*', '[', ']' };
+            var cleaned = new string(key.Select(ch => invalid.Contains(ch) ? '_' : ch).ToArray());
+            var baseName = (cleaned.Length > 20) ? cleaned.Substring(0, 20) : cleaned;
+            var candidate = id.HasValue ? $"{baseName}_{id.Value}" : baseName;
+            if (candidate.Length > 31) candidate = candidate.Substring(0, 31);
+
+            var finalName = candidate;
+            int suffix = 1;
+            while (wb.Worksheets.Any(ws => ws.Name.Equals(finalName, StringComparison.OrdinalIgnoreCase)))
+            {
+                finalName = $"{candidate.Substring(0, Math.Min(candidate.Length, 28))}_{suffix++}";
+            }
+            return finalName;
+        }
+
+
+        // ---------------------------------------------------------
+        // 3. REPORTE WORD (HTML a DOC)
+        // ---------------------------------------------------------
         [HttpGet("reservas/por-cancha/word")]
         public async Task<IActionResult> GetReservasPorCanchaWord()
         {
@@ -203,30 +236,39 @@ namespace ReservasCanchas_Web.Controllers
                                  .ToList();
 
             var sb = new StringBuilder();
-            sb.Append("<!doctype html><html><head><meta charset=\"utf-8\" /><style>");
-            sb.Append("body{font-family: Arial, Helvetica, sans-serif; font-size:12px;} ");
-            sb.Append("table{border-collapse:collapse; width:100%; margin-bottom:12px;} ");
-            sb.Append("th,td{border:1px solid #ccc; padding:6px; text-align:left;} ");
-            sb.Append("th{background:#f2f2f2;} ");
-            sb.Append("</style></head><body>");
-            sb.AppendFormat("<h1>Reporte de reservas por cancha - {0}</h1>", DateTime.Now.ToString("dd/MM/yyyy"));
+            sb.Append("<!doctype html><html><head><meta charset='utf-8' />");
+
+            sb.Append("<style>");
+            sb.Append("body { font-family: 'Calibri', 'Arial', sans-serif; font-size: 11pt; }");
+            sb.Append("h1 { color: #007bff; border-bottom: 2px solid #007bff; padding-bottom: 10px; }");
+            sb.Append("h2 { background-color: #f2f2f2; padding: 5px; border-left: 5px solid #007bff; color: #333; margin-top: 20px; }");
+            sb.Append("table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }");
+            sb.Append("th { background-color: #007bff; color: white; padding: 8px; text-align: left; border: 1px solid #ddd; }");
+            sb.Append("td { padding: 8px; border: 1px solid #ddd; }");
+            sb.Append("tr:nth-child(even) { background-color: #f9f9f9; }");
+            sb.Append("</style>");
+
+            sb.Append("</head><body>");
+            sb.Append($"<h1>Reporte de Reservas - {DateTime.Now:dd/MM/yyyy}</h1>");
 
             foreach (var g in groups)
             {
-                sb.AppendFormat("<h2>{0} ({1} reservas)</h2>", WebUtility.HtmlEncode(g.Key), g.Count());
+                sb.Append($"<h2>{WebUtility.HtmlEncode(g.Key)} ({g.Count()} reservas)</h2>");
                 sb.Append("<table>");
                 sb.Append("<thead><tr><th>ID</th><th>Usuario</th><th>Fecha</th><th>Hora inicio</th><th>Hora fin</th><th>Estado</th></tr></thead>");
                 sb.Append("<tbody>");
+
                 foreach (var r in g.OrderBy(r => r.FechaReserva).ThenBy(r => r.HoraInicio))
                 {
-                    var usuario = r.Usuario != null ? $"{r.Usuario.Nombre} {r.Usuario.PrimerApellido}" : r.UsuarioId.ToString();
+                    var usuario = r.Usuario != null ? $"{r.Usuario.Nombre} {r.Usuario.PrimerApellido}" : "N/A";
+
                     sb.Append("<tr>");
-                    sb.AppendFormat("<td>{0}</td>", WebUtility.HtmlEncode(r.ReservaId.ToString()));
+                    sb.AppendFormat("<td>{0}</td>", r.ReservaId);
                     sb.AppendFormat("<td>{0}</td>", WebUtility.HtmlEncode(usuario));
-                    sb.AppendFormat("<td>{0}</td>", WebUtility.HtmlEncode(r.FechaReserva.ToString("dd/MM/yyyy")));
-                    sb.AppendFormat("<td>{0}</td>", WebUtility.HtmlEncode(r.HoraInicio.ToString(@"hh\:mm")));
-                    sb.AppendFormat("<td>{0}</td>", WebUtility.HtmlEncode(r.HoraFin.ToString(@"hh\:mm")));
-                    sb.AppendFormat("<td>{0}</td>", WebUtility.HtmlEncode(r.Estado?.NombreEstado ?? r.EstadoId.ToString()));
+                    sb.AppendFormat("<td>{0}</td>", r.FechaReserva.ToString("dd/MM/yyyy"));
+                    sb.AppendFormat("<td>{0}</td>", r.HoraInicio.ToString(@"hh\:mm"));
+                    sb.AppendFormat("<td>{0}</td>", r.HoraFin.ToString(@"hh\:mm"));
+                    sb.AppendFormat("<td>{0}</td>", WebUtility.HtmlEncode(r.Estado?.NombreEstado ?? "N/A"));
                     sb.Append("</tr>");
                 }
                 sb.Append("</tbody></table>");
@@ -235,9 +277,7 @@ namespace ReservasCanchas_Web.Controllers
             sb.Append("</body></html>");
 
             var bytes = Encoding.UTF8.GetBytes(sb.ToString());
-            var fileName = $"reservas_por_cancha_{DateTime.Now:yyyyMMdd_HHmm}.doc";
-            // application/msword funciona bien para que Word abra el HTML como documento
-            return File(bytes, "application/msword; charset=utf-8", fileName);
+            return File(bytes, "application/msword; charset=utf-8", $"reporte_reservas_{DateTime.Now:yyyyMMdd}.doc");
         }
     }
 }

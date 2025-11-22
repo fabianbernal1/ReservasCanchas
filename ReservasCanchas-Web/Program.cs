@@ -17,7 +17,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // Configuración SMTP desde appsettings (usar SmtpOptions)
-builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("EmailSettings"));
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 
 // HttpClient para que los componentes consuman la API internamente
@@ -49,6 +49,7 @@ builder.Services.AddScoped<IUsuarioService, UsuarioService>();
 builder.Services.AddScoped<IEstadoReservaService, EstadoReservaService>();
 builder.Services.AddScoped<IMetodoPagoService, MetodoPagoService>();
 builder.Services.AddScoped<IPagoService, PagoService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 // Web API, JSON y Swagger
 builder.Services.AddControllers()

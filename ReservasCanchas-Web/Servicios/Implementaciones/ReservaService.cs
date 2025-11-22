@@ -12,14 +12,24 @@ namespace ReservasCanchas_Web.Servicios.Implementaciones
     {
         private readonly IReservaRepository _repo;
         private readonly IUsuarioService _usuarioService;
-        private readonly IEmailSender _emailSender;
+
+        // 1. NUEVO: Agregamos el servicio de Canchas
+        private readonly ICanchaService _canchaService;
+
+        private readonly IEmailService _emailService;
         private readonly ILogger<ReservaService> _logger;
 
-        public ReservaService(IReservaRepository repo, IUsuarioService usuarioService, IEmailSender emailSender, ILogger<ReservaService> logger)
+        // 2. NUEVO: Lo inyectamos en el constructor
+        public ReservaService(IReservaRepository repo,
+                              IUsuarioService usuarioService,
+                              ICanchaService canchaService, // <-- Aquí
+                              IEmailService emailService,
+                              ILogger<ReservaService> logger)
         {
             _repo = repo;
             _usuarioService = usuarioService;
-            _emailSender = emailSender;
+            _canchaService = canchaService; // <-- Asignación
+            _emailService = emailService;
             _logger = logger;
         }
 
@@ -29,37 +39,33 @@ namespace ReservasCanchas_Web.Servicios.Implementaciones
 
         public async Task AddAsync(Reserva reserva)
         {
-            // El repositorio ya guarda los cambios internamente en AddAsync,
-            // por eso NO debemos llamar SaveChangesAsync aquí (evitamos doble guardado).
             await _repo.AddAsync(reserva);
 
-            // Intentar enviar correo al usuario asociado (si existe). Loguear resultados.
             try
             {
                 var usuario = await _usuarioService.GetByIdAsync(reserva.UsuarioId);
+
+                // 3. NUEVO: Buscamos la información de la cancha usando el ID
+                var cancha = await _canchaService.GetByIdAsync(reserva.CanchaId);
+
                 if (usuario != null && !string.IsNullOrEmpty(usuario.Correo))
                 {
-                    var subject = "Confirmación de reserva";
-                    // Usar ToString para formatear TimeSpan y evitar errores de escape en interpolación
-                    var horaInicio = reserva.HoraInicio.ToString(@"hh\:mm");
-                    var horaFin = reserva.HoraFin.ToString(@"hh\:mm");
+                    // Asignamos los objetos completos a la reserva para que el HTML pueda leer .Nombre
+                    reserva.Usuario = usuario;
+                    reserva.Cancha = cancha; // <-- ¡Esto hará que aparezca el nombre en el correo!
 
-                    var body = $@"<p>Hola {usuario.Nombre},</p>
-                                  <p>Tu reserva (ID: {reserva.ReservaId}) para la fecha {reserva.FechaReserva:dd/MM/yyyy} de {horaInicio} a {horaFin} fue registrada correctamente.</p>
-                                  <p>Gracias.</p>";
+                    await _emailService.SendReservaConfirmationEmailAsync(reserva);
 
-                    await _emailSender.SendEmailAsync(usuario.Correo, subject, body);
-                    _logger.LogInformation("Correo de confirmación enviado a {Correo} para reserva {ReservaId}", usuario.Correo, reserva.ReservaId);
+                    _logger.LogInformation("Correo enviado a {Correo}", usuario.Correo);
                 }
                 else
                 {
-                    _logger.LogWarning("No se encontró usuario o correo vacío para la reserva {ReservaId}", reserva.ReservaId);
+                    _logger.LogWarning("Usuario no encontrado para reserva {ReservaId}", reserva.ReservaId);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Fallo al enviar correo de confirmación para la reserva {ReservaId}", reserva.ReservaId);
-                // No rethrow para no romper el flujo de guardado.
+                _logger.LogError(ex, "Fallo al enviar correo para reserva {ReservaId}", reserva.ReservaId);
             }
         }
 

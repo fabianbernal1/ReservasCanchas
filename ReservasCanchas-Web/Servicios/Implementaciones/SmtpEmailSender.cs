@@ -1,4 +1,4 @@
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 using ReservasCanchas_Web.Servicios.Interfaces;
@@ -14,7 +14,7 @@ namespace ReservasCanchas_Web.Servicios.Implementaciones
         public int Port { get; set; } = 587;
         public bool EnableSsl { get; set; } = true;
         public string? Username { get; set; } = "ewcshnhm461@gmail.com";
-        public string? Password { get; set; } = "";
+        public string? Password { get; set; } = "ppaz mjpy nfnu hclx";
         public string From { get; set; } = "ewcshnhm461@gmail.com";
     }
 
@@ -31,15 +31,23 @@ namespace ReservasCanchas_Web.Servicios.Implementaciones
 
         public async Task SendEmailAsync(string to, string subject, string body)
         {
-            _logger.LogInformation("Preparando env�o de correo a {To} (asunto: {Subject})", to, subject);
+            _logger.LogInformation("Preparando envío de correo a {To} (asunto: {Subject})", to, subject);
 
             var message = new MimeMessage();
             message.From.Add(MailboxAddress.Parse(_options.From));
             message.To.Add(MailboxAddress.Parse(to));
             message.Subject = subject;
-            message.Body = new TextPart("html") { Text = body };
+
+            // 🛑 CORRECCIÓN: Reemplazar TextPart con BodyBuilder para asegurar el formato HTML.
+            var builder = new BodyBuilder
+            {
+                HtmlBody = body // El string 'body' que contiene tu HTML estilizado
+            };
+            message.Body = builder.ToMessageBody();
+            // -------------------------------------------------------------
 
             using var client = new MailKit.Net.Smtp.SmtpClient();
+            // ... (El resto del código try/catch para la conexión y envío permanece igual) ...
             try
             {
                 var secure = _options.EnableSsl ? SecureSocketOptions.StartTls : SecureSocketOptions.Auto;
