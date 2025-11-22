@@ -10,13 +10,22 @@ namespace ReservasCanchas_Web.Servicios.Implementaciones
     public class ReservaService : IReservaService
     {
         private readonly IReservaRepository _repo;
-        public ReservaService(IReservaRepository repo) => _repo = repo;
+        private readonly IEmailService _emailService;
+       
+        public ReservaService(IReservaRepository repo, IEmailService emailService) { 
+            _repo = repo;
+            _emailService = emailService;
+        }
 
         public Task<IEnumerable<Reserva>> GetAllAsync() => _repo.GetAllAsync();
 
         public Task<Reserva?> GetByIdAsync(int id) => _repo.GetByIdAsync(id);
 
-        public Task AddAsync(Reserva reserva) => _repo.AddAsync(reserva);
+        public async Task AddAsync(Reserva reserva)
+        {
+            await _repo.AddAsync(reserva);
+            await _emailService.SendReservaConfirmationEmailAsync(reserva);
+        }
 
         public Task UpdateAsync(Reserva reserva) => _repo.UpdateAsync(reserva);
 

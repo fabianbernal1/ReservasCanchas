@@ -31,6 +31,10 @@ builder.Services.AddScoped<IEstadoReservaService, EstadoReservaService>();
 builder.Services.AddScoped<IMetodoPagoService, MetodoPagoService>();
 builder.Services.AddScoped<IPagoService, PagoService>();
 
+//correo
+builder.Services.AddScoped<IReservaService, ReservaService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
